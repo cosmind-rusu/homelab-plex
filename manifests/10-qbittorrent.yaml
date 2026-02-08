@@ -1,0 +1,122 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: qbittorrent
+  namespace: media-stack
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qbittorrent
+  template:
+    metadata:
+      labels:
+        app: qbittorrent
+    spec:
+      securityContext:
+        fsGroup: 1000
+      containers:
+      - name: qbittorrent
+        image: lscr.io/linuxserver/qbittorrent:latest
+        imagePullPolicy: Always
+        env:
+        - name: PUID
+          value: "1000"
+        - name: PGID
+          value: "1000"
+        - name: TZ
+          value: "Europe/Madrid"
+        - name: WEBUI_PORT
+          value: "8080"
+        ports:
+        - name: webui
+          containerPort: 8080
+        - name: torrent-tcp
+          containerPort: 6881
+          protocol: TCP
+        - name: torrent-udp
+          containerPort: 6881
+          protocol: UDP
+        volumeMounts:
+        - name: config
+          mountPath: /config
+        - name: downloads
+          mountPath: /data/downloads
+        - name: movies
+          mountPath: /data/media/movies
+        - name: tv
+          mountPath: /data/media/tv
+        readinessProbe:
+          httpGet:
+            path: /
+            port: webui
+          initialDelaySeconds: 20
+          periodSeconds: 10
+          timeoutSeconds: 3
+          failureThreshold: 6
+        livenessProbe:
+          httpGet:
+            path: /
+            port: webui
+          initialDelaySeconds: 60
+          periodSeconds: 20
+          timeoutSeconds: 3
+          failureThreshold: 6
+        resources:
+          requests:
+            cpu: 50m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+      volumes:
+      - name: config
+        persistentVolumeClaim:
+          claimName: qbittorrent-config
+      - name: downloads
+        hostPath:
+          path: /data/downloads
+          type: DirectoryOrCreate
+      - name: movies
+        hostPath:
+          path: /data/media/movies
+          type: DirectoryOrCreate
+      - name: tv
+        hostPath:
+          path: /data/media/tv
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent
+  namespace: media-stack
+spec:
+  type: ClusterIP
+  selector:
+    app: qbittorrent
+  ports:
+  - name: webui
+    port: 8080
+    targetPort: webui
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: qbittorrent-torrent
+  namespace: media-stack
+spec:
+  type: NodePort
+  selector:
+    app: qbittorrent
+  ports:
+  - name: torrent-tcp
+    port: 6881
+    targetPort: 6881
+    protocol: TCP
+    nodePort: 30881
+  - name: torrent-udp
+    port: 6881
+    targetPort: 6881
+    protocol: UDP
+    nodePort: 30881
