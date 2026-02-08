@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: plex
-  namespace: plex
+  namespace: media-stack
 spec:
   replicas: 1
   selector:
@@ -39,3 +39,17 @@ spec:
         hostPath:
           path: /data/media
           type: Directory
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: plex
+  namespace: media-stack
+spec:
+  selector:
+    app: plex
+  ports:
+  - port: 32400
+    targetPort: 32400
+    protocol: TCP
+  type: ClusterIP
