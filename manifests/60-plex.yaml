@@ -13,9 +13,12 @@ spec:
       labels:
         app: plex
     spec:
+      securityContext:
+        fsGroup: 1000
       containers:
       - name: plex
         image: lscr.io/linuxserver/plex:latest
+        imagePullPolicy: Always
         env:
         - name: PUID
           value: "1000"
@@ -23,8 +26,11 @@ spec:
           value: "1000"
         - name: VERSION
           value: "docker"
+        - name: TZ
+          value: "Europe/Madrid"
         ports:
-        - containerPort: 32400
+        - name: http
+          containerPort: 32400
         volumeMounts:
         - name: config
           mountPath: /config
@@ -32,9 +38,8 @@ spec:
           mountPath: /data/media
       volumes:
       - name: config
-        hostPath:
-          path: /data/plex-config
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: plex-config
       - name: media
         hostPath:
           path: /data/media
@@ -48,8 +53,9 @@ metadata:
 spec:
   selector:
     app: plex
-  ports:
-  - port: 32400
-    targetPort: 32400
-    protocol: TCP
   type: ClusterIP
+  ports:
+  - name: http
+    port: 32400
+    targetPort: http
+    protocol: TCP
